@@ -1,37 +1,50 @@
 pipeline {
     agent any
     
+    environment {
+        PROJECT_ID = "terraform-gcp-506723"
+        IMAGE_NAME = "gcr.io/${env.PROJECT_ID}/vois-app"
+        CREDENTIALS_ID = "gcp-sa-key"
+    }
+    
     stages {
         stage('1. Checkout Code') {
             steps {
-                echo 'Pulling code from repository...'
                 checkout scm
             }
         }
         
-        stage('2. Build Docker Image') {
+        stage('2. Build & Push Docker Image') {
             steps {
-                echo 'Building Docker image for vois-app...'
                 script {
-                    appImage = docker.build("gcr.io/${env.PROJECT_ID}/vois-app:${env.BUILD_NUMBER}")
+                    withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                        sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
+                        sh "gcloud auth configure-docker --quiet"
+                        
+                        // بناء الصورة ورفعها لـ Google Container Registry
+                        appImage = docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}")
+                        appImage.push()
+                    }
                 }
             }
         }
         
         stage('3. Deploy to Kubernetes') {
             steps {
-                echo 'Deploying application to production namespace...'
-                sh "kubectl set image deployment/vois-app vois-app=gcr.io/${env.PROJECT_ID}/vois-app:${env.BUILD_NUMBER} -n production"
+                script {
+                    // تحديث الصورة في الـ Deployment تلقائياً
+                    sh "kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
+                }
             }
         }
     }
     
     post {
         success {
-            echo 'Pipeline executed successfully! App is up and running.'
+            echo 'Pipeline executed successfully! App is deployed.'
         }
         failure {
-            echo 'Pipeline failed. Please check the logs.'
+            echo 'Pipeline failed. Check logs for details.'
         }
     }
 }
