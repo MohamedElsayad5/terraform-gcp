@@ -1,15 +1,11 @@
 pipeline {
-    agent {
-        docker {
-            image 'google/cloud-sdk:latest'
-            args '--user root'
-        }
-    }
+    agent any
     
     environment {
         PROJECT_ID = "terraform-gcp-506723"
         IMAGE_NAME = "gcr.io/${env.PROJECT_ID}/vois-app"
         CREDENTIALS_ID = "gcp-sa-key"
+        PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/google-cloud-sdk/bin"
     }
     
     stages {
@@ -26,9 +22,8 @@ pipeline {
                         sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
                         sh "gcloud auth configure-docker --quiet"
                         
-                        // بناء الصورة باستخدام أداة الـ Docker الخارجية المتاحة على الهوست
-                        sh "docker build -t ${env.IMAGE_NAME}:${env.BUILD_NUMBER} ./app"
-                        sh "docker push ${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
+                        appImage = docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}", "./app")
+                        appImage.push()
                     }
                 }
             }
@@ -37,12 +32,7 @@ pipeline {
         stage('3. Deploy to Kubernetes') {
             steps {
                 script {
-                    withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                        sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
-                        // لو محتاج تتصل بالكلاستر مباشرة من البايبلان
-                        sh "gcloud container clusters get-credentials <cluster-name> --region <region> --project ${env.PROJECT_ID}"
-                        sh "kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
-                    }
+                    sh "kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
                 }
             }
         }
