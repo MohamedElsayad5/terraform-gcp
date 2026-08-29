@@ -1,5 +1,15 @@
-.terraform
-.terraform.lock.hcl
-terraform.tfstate
-terraform.tfstate.backup
+# Terraform files
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+*.tfvars
+
+# Secrets & Keys
+gcp-key.json
+*.pem
+
+# OS files
+.DS_Store
+Thumbs.db
 terraform.tfstate.1787868818.backup
