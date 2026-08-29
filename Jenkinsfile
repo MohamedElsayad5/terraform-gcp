@@ -17,18 +17,16 @@ pipeline {
         stage('2. Build & Push Docker Image') {
             steps {
                 script {
-                    // استخدام كونتينر Google Cloud SDK الجاهز لتنفيذ الأوامر بمعزل عن مشاكل الكونتينر الرئيسي
-                    docker.image('google/cloud-sdk:latest').inside('--user root -v /var/run/docker.sock:/var/run/docker.sock') {
-                        withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                            sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
-                            sh "gcloud auth configure-docker --quiet"
-                            
-                            // تثبيت وتفعيل أداة الـ docker داخل الكونتينر المؤقت لو مش موجودة
-                            sh "apt-get update && apt-get install -y docker.io"
-                            
-                            appImage = docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}", "./app")
-                            appImage.push()
-                        }
+                    withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                        // تسجيل الدخول على Google Cloud باستخدام الملف
+                        sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
+                        sh "gcloud auth configure-docker --quiet"
+                        
+                        // بناء صورة الدوكر باستخدام شل سكريبت مباشر
+                        sh "docker build -t ${env.IMAGE_NAME}:${env.BUILD_NUMBER} ."
+                        
+                        // رفع الصورة لـ Google Container Registry
+                        sh "docker push ${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
                     }
                 }
             }
@@ -37,12 +35,11 @@ pipeline {
         stage('3. Deploy to Kubernetes') {
             steps {
                 script {
-                    docker.image('google/cloud-sdk:latest').inside('--user root') {
-                        withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                            sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
-                            sh "gcloud container clusters get-credentials <cluster-name> --region <region> --project ${env.PROJECT_ID}"
-                            sh "kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
-                        }
+                    withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                        sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
+                        
+                        // تحديث الكلاستر ونشر الصورة الجديدة
+                        sh "kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
                     }
                 }
             }
