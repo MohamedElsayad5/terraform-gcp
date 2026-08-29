@@ -5,7 +5,6 @@ pipeline {
         PROJECT_ID = "terraform-gcp-506723"
         IMAGE_NAME = "gcr.io/${env.PROJECT_ID}/vois-app"
         CREDENTIALS_ID = "gcp-sa-key"
-        PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/google-cloud-sdk/bin"
     }
     
     stages {
@@ -19,8 +18,8 @@ pipeline {
             steps {
                 script {
                     withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                        sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
-                        sh "gcloud auth configure-docker --quiet"
+                        sh "/usr/bin/gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
+                        sh "/usr/bin/gcloud auth configure-docker --quiet"
                         
                         appImage = docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}", "./app")
                         appImage.push()
@@ -32,7 +31,7 @@ pipeline {
         stage('3. Deploy to Kubernetes') {
             steps {
                 script {
-                    sh "kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
+                    sh "/usr/bin/kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
                 }
             }
         }
