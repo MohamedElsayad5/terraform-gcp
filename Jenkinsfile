@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'google/cloud-sdk:latest'
+            args '--user root'
+        }
+    }
     
     environment {
         PROJECT_ID = "terraform-gcp-506723"
@@ -18,11 +23,12 @@ pipeline {
             steps {
                 script {
                     withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                        sh "/usr/bin/gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
-                        sh "/usr/bin/gcloud auth configure-docker --quiet"
+                        sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
+                        sh "gcloud auth configure-docker --quiet"
                         
-                        appImage = docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}")
-                        appImage.push()
+                        // بناء الصورة باستخدام أداة الـ Docker الخارجية المتاحة على الهوست
+                        sh "docker build -t ${env.IMAGE_NAME}:${env.BUILD_NUMBER} ./app"
+                        sh "docker push ${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
                     }
                 }
             }
@@ -31,7 +37,12 @@ pipeline {
         stage('3. Deploy to Kubernetes') {
             steps {
                 script {
-                    sh "/usr/bin/kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
+                    withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
+                        sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
+                        // لو محتاج تتصل بالكلاستر مباشرة من البايبلان
+                        sh "gcloud container clusters get-credentials <cluster-name> --region <region> --project ${env.PROJECT_ID}"
+                        sh "kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
+                    }
                 }
             }
         }
