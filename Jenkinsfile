@@ -18,8 +18,8 @@ pipeline {
             steps {
                 script {
                     withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                        sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
-                        sh "gcloud auth configure-docker --quiet"
+                        sh "/usr/bin/gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
+                        sh "/usr/bin/gcloud auth configure-docker --quiet"
                         
                         // بناء الصورة ورفعها لـ Google Container Registry
                         appImage = docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}")
@@ -32,12 +32,11 @@ pipeline {
         stage('3. Deploy to Kubernetes') {
             steps {
                 script {
-                    // تحديث الصورة في الـ Deployment تلقائياً
-                    sh "kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
+                    // تحديث الصورة في الـ Deployment تلقائياً باستخدام المسار الكامل
+                    sh "/usr/bin/kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
                 }
             }
         }
-    }
     
     post {
         success {
