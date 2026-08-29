@@ -32,7 +32,7 @@ module "cluster" {
   region                          = var.region
   zones                           = var.zones
   machine_type                    = "e2-medium"    # Reduced to e2-medium for faster provisioning without complications
-  nodes_per_zone                  = 1              # Sufficient node for initial setup to ensure speed and reliability
+  nodes_per_zone                  = 2              # Sufficient node for initial setup to ensure speed and reliability
   boot_disk_size                  = 50             # Appropriate and fast boot disk size
   master_cidr                     = "172.16.0.0/28"
   master_authorized_networks_cidr = "0.0.0.0/0"    # Temporarily opened for seamless communication between Nodes and Control Plane
