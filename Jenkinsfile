@@ -18,15 +18,14 @@ pipeline {
             steps {
                 script {
                     withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                        // تسجيل الدخول على Google Cloud باستخدام الملف
-                        sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
-                        sh "gcloud auth configure-docker --quiet"
-                        
-                        // بناء صورة الدوكر باستخدام شل سكريبت مباشر
-                        sh "docker build -t ${env.IMAGE_NAME}:${env.BUILD_NUMBER} ."
-                        
-                        // رفع الصورة لـ Google Container Registry
-                        sh "docker push ${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
+                        // إضافة مسار الـ gcloud للـ PATH مباشرة قبل التنفيذ
+                        sh '''
+                            export PATH=$PATH:/usr/lib/google-cloud-sdk/bin
+                            gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+                            gcloud auth configure-docker --quiet
+                            docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                            docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                        '''
                     }
                 }
             }
@@ -36,10 +35,11 @@ pipeline {
             steps {
                 script {
                     withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                        sh "gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
-                        
-                        // تحديث الكلاستر ونشر الصورة الجديدة
-                        sh "kubectl set image deployment/vois-app vois-app=${env.IMAGE_NAME}:${env.BUILD_NUMBER} -n production"
+                        sh '''
+                            export PATH=$PATH:/usr/lib/google-cloud-sdk/bin
+                            gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+                            kubectl set image deployment/vois-app vois-app=${IMAGE_NAME}:${BUILD_NUMBER} -n production
+                        '''
                     }
                 }
             }
