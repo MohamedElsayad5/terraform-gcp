@@ -18,8 +18,8 @@ pipeline {
             steps {
                 script {
                     withCredentials([file(credentialsId: env.CREDENTIALS_ID, variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-                        sh "/usr/bin/gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
-                        sh "/usr/bin/gcloud auth configure-docker --quiet"
+                        sh "/usr/lib/google-cloud-sdk/bin/gcloud auth activate-service-account --key-file=\$GOOGLE_APPLICATION_CREDENTIALS"
+                        sh "/usr/lib/google-cloud-sdk/bin/gcloud auth configure-docker --quiet"
                         
                         appImage = docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}", "./app")
                         appImage.push()
